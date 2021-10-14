@@ -24,7 +24,15 @@ namespace EfCore_CodeFirstPracticePersistenceLayer
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-           
+            modelBuilder.Entity<Customer>().Property(c => c.FirstName).HasColumnName("CustomerFirstName").HasMaxLength(50);
+            modelBuilder.Entity<Customer>().ToTable("CustomerWithOrder");
+            modelBuilder.Entity<Order>(entity =>
+            {
+                entity.HasOne(d => d.Customer)
+                .WithMany(p => p.Orders)
+                .HasForeignKey(d => d.Id)
+                .HasConstraintName("FK_CustomerID");
+            });
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)

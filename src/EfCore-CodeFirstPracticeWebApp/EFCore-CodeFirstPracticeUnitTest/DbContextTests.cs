@@ -19,17 +19,19 @@ namespace EFCore_CodeFirstPracticeUnitTest
             orderDbContext = new OrderDbContext();
             
             persistenceLayer = typeof(OrderDbContext).Assembly;
+            orderDbContext.Database.EnsureDeleted();
+            orderDbContext.Database.EnsureCreated();
         }
         [Test]
         public void FirstMigrationExist()
         {
-            var result = persistenceLayer.GetTypes().FirstOrDefault(x => x.Name.Contains("initialCreate"));
+            var result = persistenceLayer.GetTypes().FirstOrDefault(x => x.Name.Contains("InitialCreation"));
             Assert.IsNotNull(result);
         }
         [Test]
         public void MigrationStep3Exist()
         {
-            var result = persistenceLayer.GetTypes().FirstOrDefault(x => x.Name.Contains("ChangeFieldName"));
+            var result = persistenceLayer.GetTypes().FirstOrDefault(x => x.Name.Contains("ChangeTableAndFieldName"));
             Assert.IsNotNull(result);
         }
         [Test]
@@ -48,29 +50,54 @@ namespace EFCore_CodeFirstPracticeUnitTest
         [Test]
         public void CustumerOrderTableExist()
         {
-            TableExist("CustomerOrder");
+            TableExist("CustomerWithOrder");
         }
 
         [Test]
         public void ChangeCustomerTableNameAndChangeFirstNameTest()
         {
-            TableExist("CustomersOrder");
-            ColumnExist("CustomerOrder","CustomerFirstName");
+            TableExist("CustomerWithOrder");
+            ColumnExist("CustomerWithOrder","CustomerFirstName");
         }
 
         [Test]
         public void FirstNameMaxLengthTest()
         {
-            TableExist("CustomersOrder");
-            ColumnExist("CustomerOrder", "CustomerFirstName");
-            MaxLengthCheck("CustomerOrder", "CustomerFirstName", 50);
+            TableExist("CustomerWithOrder");
+            ColumnExist("CustomerWithOrder", "CustomerFirstName");
+            MaxLengthCheck("CustomerWithOrder", "CustomerFirstName", 50);
         }
 
         [Test]
         public void ChangeFKNameTest()
         {
             TableExist("Orders");
-            ColumnExist("Orders", "FK_CustomerID");
+            ConstraintExist("Orders", "FK_CustomerID");
+        }
+
+        public void ConstraintExist(string tableName, string constraintName)
+        {
+
+            using (SqlConnection con = CreateSQLConnection())
+            {
+                con.Open();
+                using (SqlCommand command = new SqlCommand(BuildSqlForTestConstraintField(tableName, constraintName), con))
+                {
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            Assert.AreEqual(1, reader.GetInt32(0));
+                        }
+                    }
+                }
+
+            }
+        }
+
+        public string BuildSqlForTestConstraintField(string tableName, string fields)
+        {
+            return @$"IF EXISTS (Select 1 FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE CONSTRAINT_NAME=N'{fields}' AND TABLE_NAME=N'{tableName}') SELECT 1 AS res ELSE SELECT 0 AS res";
         }
 
         public void TableExist(string tableName)
